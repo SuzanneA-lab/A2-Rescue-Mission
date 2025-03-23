@@ -18,10 +18,16 @@ public class DroneStatus {
         battery = info.getInt("budget");
     }
 
+    //Default constructor for cases where no initialization data is provided
+    public DroneStatus() {
+        battery = 100; //Default battery level
+    }
+
     //takes in cost of previous move and deducts it from current battery
     private void UpdateBattery(int cost){
-        battery = battery - cost;
+        battery -= cost;
     }
+    
 
     //maybe not neccesary? could be completely replaced with getStatus method
     private int getBattery(){ 
