@@ -9,7 +9,6 @@ import org.json.JSONTokener;
 
 // MakeDecision class responsible for managing direction of drone and deciding next move based on radar input
 public class MakeDecision{
-    //private JSONOBJECT converter = new JSONOBJECT(new JSONTokener(new StringReader(s)));
     private String direction;
 
     //constructor that takes in info JSONOBJECT in initializatino stage to get direction
@@ -18,8 +17,8 @@ public class MakeDecision{
     }
     
     //decideNextMove method responsible that takes in radarData and returns either instructions to "fly" or the direction the drone should turn in
-    private String decideNextMove(JSONOBJECT radarData){
-        String radar = converter.getString("found");
+    public String decideNextMove(JSONObject radarData){
+        String radar = radarData.getString("found");
         if (radar == "GROUND"){
             return "fly";
         }
@@ -34,7 +33,7 @@ public class MakeDecision{
             }
 
             else if (direction.equals("S")){
-                direction = "E"
+                direction = "E";
             }
 
             else if (direction.equals("W")){
