@@ -1,6 +1,8 @@
 package ca.mcmaster.se2aa4.island.teamXXX;
 
 import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import eu.ace_design.island.bot.IExplorerRaid;
@@ -13,12 +15,14 @@ public class Explorer implements IExplorerRaid {
     private DroneStatus droneStatus;
     private MakeDecision decisionMaker;
     private ExecuteAction actionExecutor;
+    private List<String> foundCreeks; //List to store found creeks/emergency sites
 
     //Constructor
     public Explorer() {
         this.droneStatus = new DroneStatus(); //Default initialization
         this.decisionMaker = new MakeDecision(); //Default initialization
         this.actionExecutor = new DroneExecutor(); //Default implementation of ExecuteAction
+        this.foundCreeks = new ArrayList<>(); //Initialize the list of found creeks
     }
 
     @Override
@@ -46,10 +50,17 @@ public class Explorer implements IExplorerRaid {
             //Perform a scan and parse the radar data
             radarData = new JSONObject(actionExecutor.scan());
             logger.info("** Radar data received: {}", radarData.toString());
+
+            //Check if a creek or emergency site is found and add it to the list
+            if ("CREEK".equals(radarData.optString("found", ""))) {
+                foundCreeks.add(radarData.toString());
+                logger.info("** Creek found and added to the list!");
+            }
         } catch (Exception e) {
             logger.error("Error during scan: {}", e.getMessage());
-            return "{}";//Return an empty decision in case of failure
+            return "{}"; //Return an empty decision in case of failure
         }
+
         //Use MakeDecision to determine the next action
         String action = decisionMaker.decideNextMove(radarData);
         JSONObject decision = new JSONObject();
@@ -78,13 +89,8 @@ public class Explorer implements IExplorerRaid {
 
             //Update the drone's battery based on the cost of the last action
             int cost = response.getInt("cost");
-            droneStatus.UpdateBattery(cost); //Use DroneStatus to update the battery
+            droneStatus.updateBattery(cost); // Use DroneStatus to update the battery
             logger.info("** Battery updated. Remaining: {}", droneStatus.getBattery());
-
-            //Check if a creek was found
-            if ("CREEK".equals(response.optString("found", ""))) {
-                logger.info("** Creek found!");
-            }
 
             //Check the drone's status
             if (!droneStatus.getStatus(response)) {
@@ -98,8 +104,10 @@ public class Explorer implements IExplorerRaid {
     @Override
     public String deliverFinalReport() {
         logger.info("** Delivering final report");
-        //Return a report based on whether the drone is still operational
-        return droneStatus.getBattery() > 0 ? "Mission complete!" : "Mission failed: Out of battery!";
+        //Return a report based on whether the drone is still operational and the creeks found
+        return droneStatus.getBattery() > 0
+                ? "Mission complete! Creeks found: " + foundCreeks
+                : "Mission failed: Out of battery!";
     }
 
     //Main game loop
