@@ -16,13 +16,15 @@ public class Explorer implements IExplorerRaid {
     private MakeDecision decisionMaker;
     private ExecuteAction actionExecutor;
     private List<String> foundCreeks; //List to store found creeks/emergency sites
+    private String emergencySite; //Identifier for the emergency site
 
     //Constructor
     public Explorer() {
         this.droneStatus = new DroneStatus(); //Default initialization
-        this.decisionMaker = new MakeDecision(); //Default initialization
+        this.decisionMaker = null; //Will be initialized in the `initialize` method
         this.actionExecutor = new DroneExecutor(); //Default implementation of ExecuteAction
         this.foundCreeks = new ArrayList<>(); //Initialize the list of found creeks
+        this.emergencySite = null; //Initialize the emergency site as null
     }
 
     @Override
@@ -51,10 +53,13 @@ public class Explorer implements IExplorerRaid {
             radarData = new JSONObject(actionExecutor.scan());
             logger.info("** Radar data received: {}", radarData.toString());
 
-            //Check if a creek or emergency site is found and add it to the list
+            //Check if a creek or emergency site is found
             if ("CREEK".equals(radarData.optString("found", ""))) {
                 foundCreeks.add(radarData.toString());
                 logger.info("** Creek found and added to the list!");
+            } else if ("EMERGENCY_SITE".equals(radarData.optString("found", ""))) {
+                emergencySite = radarData.optString("id", "UNKNOWN");
+                logger.info("** Emergency site found with ID: {}", emergencySite);
             }
         } catch (Exception e) {
             logger.error("Error during scan: {}", e.getMessage());
@@ -104,10 +109,16 @@ public class Explorer implements IExplorerRaid {
     @Override
     public String deliverFinalReport() {
         logger.info("** Delivering final report");
-        //Return a report based on whether the drone is still operational and the creeks found
-        return droneStatus.getBattery() > 0
+        //Return a report based on whether the drone is still operational and the creeks/emergency site found
+        String report = droneStatus.getBattery() > 0
                 ? "Mission complete! Creeks found: " + foundCreeks
                 : "Mission failed: Out of battery!";
+        if (emergencySite != null) {
+            report += " Emergency site located with ID: " + emergencySite;
+        } else {
+            report += " Emergency site not located.";
+        }
+        return report;
     }
 
     //Main game loop
@@ -130,7 +141,7 @@ public class Explorer implements IExplorerRaid {
     }
 
     private boolean checkTerminationConditions() {
-        //Terminate if the battery is too low
-        return droneStatus.getBattery() <= 10;
+        //Terminate if the battery is too low or both the emergency site and at least one creek are found
+        return droneStatus.getBattery() <= 10 || (emergencySite != null && !foundCreeks.isEmpty());
     }
 }

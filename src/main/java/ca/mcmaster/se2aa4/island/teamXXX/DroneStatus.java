@@ -1,51 +1,49 @@
 package ca.mcmaster.se2aa4.island.teamXXX;
 
-import java.io.StringReader;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import eu.ace_design.island.bot.IExplorerRaid;
 import org.json.JSONObject;
-import org.json.JSONTokener;
 
-//DroneStatus class manages battery and range status of drone
+//DroneStatus class manages battery and range status of the drone
 public class DroneStatus {
     private int battery;
-    private String status = ""; 
-    //private String direction = ""; // maybe better to remove ?
+    private String status = "";
+    private String heading = ""; //Direction the drone is facing
 
-    //constructor that takes in info JSONOBJECT at initialization stage to get current battery
-    public DroneStatus(JSONOBJECT info){
+    //Constructor that takes in info JSONObject at initialization stage to get current battery and heading
+    public DroneStatus(JSONObject info) {
         battery = info.getInt("budget");
+        heading = info.getString("heading");
     }
 
     //Default constructor for cases where no initialization data is provided
     public DroneStatus() {
         battery = 100; //Default battery level
+        heading = "N"; //Default heading
     }
 
-    //takes in cost of previous move and deducts it from current battery
-    private void UpdateBattery(int cost){
+    //Takes in the cost of the previous move and deducts it from the current battery
+    public void updateBattery(int cost) {
         battery -= cost;
     }
-    
 
-    //maybe not neccesary? could be completely replaced with getStatus method
-    private int getBattery(){ 
-        b = battery;
-        return b;
+    //Returns the current battery level
+    public int getBattery() {
+        return battery;
     }
 
-    //getStatus method checks both the battery and range status of drone through the response JSONOBJECT
-    //returns true if drone is still fine to proceed, and false if it is either out of battery or out of range
-    private Boolean getStatus(JSONOBJECT response){
-        status = response.getString("status");
-        
-        if (battery > 0 && status.equals("OK")){
-            return true;
-        }
+    //Returns the current heading of the drone
+    public String getHeading() {
+        return heading;
+    }
 
-        else {
-            return false;
-        }
+    //Updates the heading of the drone
+    public void setHeading(String newHeading) {
+        heading = newHeading;
+    }
+
+    //Checks both the battery and range status of the drone through the response JSONObject
+    //Returns true if the drone is still fine to proceed, and false if it is either out of battery or out of range
+    public Boolean getStatus(JSONObject response) {
+        status = response.optString("status", "UNKNOWN");
+        return battery > 0 && "OK".equals(status);
     }
 }
