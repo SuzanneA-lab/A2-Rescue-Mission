@@ -1,3 +1,4 @@
+//2AA4 Assignment 2 - Island Exploration
 package ca.mcmaster.se2aa4.island.teamXXX;
 
 import java.io.StringReader;
