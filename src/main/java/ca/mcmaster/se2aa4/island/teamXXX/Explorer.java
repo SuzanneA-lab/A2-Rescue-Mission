@@ -3,37 +3,37 @@ package ca.mcmaster.se2aa4.island.teamXXX;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import eu.ace_design.island.bot.IExplorerRaid;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
+import eu.ace_design.island.bot.IExplorerRaid;
+
 //Explorer class based on IExplorerRaid interface
-public class Explorer implements IExplorerRaid {
+public class Explorer implements IExplorerRaid, ExecuteAction {
     private final Logger logger = LogManager.getLogger();
     private DroneStatus droneStatus;
     private MakeDecision decisionMaker;
-    private ExecuteAction actionExecutor;
     private List<String> foundCreeks; //List to store found creeks/emergency sites
     private String emergencySite; //Identifier for the emergency site
 
     //Constructor
     public Explorer() {
         this.droneStatus = new DroneStatus(); //Default initialization
-        this.decisionMaker = null; //Will be initialized in the `initialize` method
-        this.actionExecutor = new DroneExecutor(); //Default implementation of ExecuteAction
+        this.decisionMaker = null; //Will be initialized in the "initialize" method
         this.foundCreeks = new ArrayList<>(); //Initialize the list of found creeks
-        this.emergencySite = null; //Initialize the emergency site as null
+        this.emergencySite = null; // Initialize the emergency site as null
     }
 
     @Override
     public void initialize(String s) {
         try {
-            //Parse the initialization JSON string
+            // Parse the initialization JSON string
             JSONObject info = new JSONObject(new JSONTokener(new StringReader(s)));
 
-            //Initialize DroneStatus and MakeDecision with the parsed JSON
+            // Initialize DroneStatus and MakeDecision with the parsed JSON
             droneStatus = new DroneStatus(info);
             decisionMaker = new MakeDecision(info);
 
@@ -50,7 +50,7 @@ public class Explorer implements IExplorerRaid {
 
         try {
             //Perform a scan and parse the radar data
-            radarData = new JSONObject(actionExecutor.scan());
+            radarData = new JSONObject(scan());
             logger.info("** Radar data received: {}", radarData.toString());
 
             //Check if a creek or emergency site is found
@@ -73,9 +73,9 @@ public class Explorer implements IExplorerRaid {
         try {
             //Execute the appropriate action based on the decision
             if ("fly".equals(action)) {
-                decision = new JSONObject(actionExecutor.fly());
+                decision = new JSONObject(fly());
             } else {
-                decision = new JSONObject(actionExecutor.turn(action)); //Use the direction returned by MakeDecision
+                decision = new JSONObject(turn(action)); //Use the direction returned by MakeDecision
             }
             logger.info("** Decision executed: {}", decision.toString());
         } catch (Exception e) {
@@ -94,7 +94,7 @@ public class Explorer implements IExplorerRaid {
 
             //Update the drone's battery based on the cost of the last action
             int cost = response.getInt("cost");
-            droneStatus.updateBattery(cost); // Use DroneStatus to update the battery
+            droneStatus.updateBattery(cost); //Use DroneStatus to update the battery
             logger.info("** Battery updated. Remaining: {}", droneStatus.getBattery());
 
             //Check the drone's status
@@ -143,5 +143,24 @@ public class Explorer implements IExplorerRaid {
     private boolean checkTerminationConditions() {
         //Terminate if the battery is too low or both the emergency site and at least one creek are found
         return droneStatus.getBattery() <= 10 || (emergencySite != null && !foundCreeks.isEmpty());
+    }
+
+    //Implementing ExecuteAction methods directly in Explorer
+    @Override
+    public String fly() {
+        // Returns a JSON string representing the "fly" action
+        return new JSONObject().put("action", "fly").toString();
+    }
+
+    @Override
+    public String turn(String newDirection) {
+        //Returns a JSON string representing the "turn" action with the specified direction
+        return new JSONObject().put("action", "turn").put("direction", newDirection).toString();
+    }
+
+    @Override
+    public String scan() {
+        //Returns a JSON string representing the "scan" action
+        return new JSONObject().put("action", "scan").toString();
     }
 }
