@@ -17,7 +17,7 @@ public class DroneStatus {
 
     //Default constructor for cases where no initialization data is provided
     public DroneStatus() {
-        battery = 700; //Default battery level
+        battery = 7000; //Default battery level
         heading = "N"; //Default heading
     }
 

@@ -6,4 +6,5 @@ public interface ExecuteAction {
     String fly();
     String turn(String newDirection);
     String scan();
+    String radar(String direction);
 }

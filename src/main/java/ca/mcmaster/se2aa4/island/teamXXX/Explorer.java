@@ -19,6 +19,8 @@ public class Explorer implements IExplorerRaid, ExecuteAction {
     private MakeDecision decisionMaker;
     private List<String> foundCreeks; //List to store found creeks/emergency sites
     private String emergencySite; //Identifier for the emergency site
+    private int n = 1; //represents the current turn: 1 == radar, 2 == move, 3 == scan
+    private String decision; //represents the current decision the drone has made about which action to take next
 
     //Constructor
     public Explorer() {
@@ -48,42 +50,23 @@ public class Explorer implements IExplorerRaid, ExecuteAction {
     public String takeDecision() {
         logger.info("** Taking decision");
         JSONObject radarData;
-
+        
         try {
-            //Perform a scan and parse the radar data
-            radarData = new JSONObject(scan());
-            logger.info("** Radar data received: {}", radarData.toString());
+        if (n==1){  //if current move is using radar
+            decision = (new JSONObject(radar(droneStatus.getHeading()))).toString();
+        }
 
-            //Check if a creek or emergency site is found
-            if ("CREEK".equals(radarData.optString("found", ""))) {
-                foundCreeks.add(radarData.toString());
-                logger.info("** Creek found and added to the list!");
-            } else if ("EMERGENCY_SITE".equals(radarData.optString("found", ""))) {
-                emergencySite = radarData.optString("id", "UNKNOWN");
-                logger.info("** Emergency site found with ID: {}", emergencySite);
-            }
+        else if (n==3){ //if current move is using scan
+            decision = (new JSONObject(scan())).toString();
+        }
+
+        logger.info("** Decision executed: {}", decision.toString());
+        return decision; //other cases, drone should use decision set in acknowledgeResults method
+        
         } catch (Exception e) {
             logger.error("Error during scan: {}", e.getMessage());
             return "{}"; //Return an empty decision in case of failure
         }
-
-        //Use MakeDecision to determine the next action
-        String action = decisionMaker.decideNextMove(radarData);
-        JSONObject decision = new JSONObject();
-
-        try {
-            //Execute the appropriate action based on the decision
-            if ("fly".equals(action)) {
-                decision = new JSONObject(fly());
-            } else {
-                decision = new JSONObject(turn(action)); //Use the direction returned by MakeDecision
-            }
-            logger.info("** Decision executed: {}", decision.toString());
-        } catch (Exception e) {
-            logger.error("Error executing action: {}", e.getMessage());
-        }
-
-        return decision.toString();
     }
 
     @Override
@@ -93,6 +76,40 @@ public class Explorer implements IExplorerRaid, ExecuteAction {
             JSONObject response = new JSONObject(new JSONTokener(new StringReader(s)));
             logger.info("** Response received:\n{}", response.toString(2));
 
+            //if previous move was radar
+            if (n==1){
+                String action = decisionMaker.decideNextMove(response);
+
+                if ("fly".equals(action)) {
+                    decision = (new JSONObject(fly())).toString();
+                } 
+                
+                else {
+                    decision = (new JSONObject(turn(action))).toString(); //Use the direction returned by MakeDecision
+                }
+            
+                n++;
+            }
+
+            //if previous move was flying or turning
+            else if (n==2){
+                n++;
+            }
+
+            //if previous move was scan
+            else {
+                //check for creeks and emergency site
+                if ("CREEK".equals(response.optString("found"))) {
+                    foundCreeks.add(response.toString());
+                    logger.info("** Creek found and added to the list!");
+                } else if ("EMERGENCY_SITE".equals(response.optString("found"))) {
+                    emergencySite = response.optString("id", "UNKNOWN");
+                    logger.info("** Emergency site found with ID: {}", emergencySite);
+                }
+
+                n=1;
+            }
+            
             //Update the drone's battery based on the cost of the last action
             int cost = response.getInt("cost");
             droneStatus.updateBattery(cost); //Use DroneStatus to update the battery
@@ -102,6 +119,7 @@ public class Explorer implements IExplorerRaid, ExecuteAction {
             if (!droneStatus.getStatus(response)) {
                 logger.warn("** Drone status is not OK: {}", response.optString("status", "UNKNOWN"));
             }
+
         } catch (Exception e) {
             logger.error("Error acknowledging results: {}", e.getMessage());
         }
@@ -122,30 +140,6 @@ public class Explorer implements IExplorerRaid, ExecuteAction {
         return report;
     }
 
-    //Main game loop
-    public void startMission(String initializationData) {
-        initialize(initializationData);
-
-        boolean missionComplete = false;
-        while (!missionComplete) {
-            //Take a decision and execute it
-            String decision = takeDecision();
-            acknowledgeResults(decision);
-
-            //Check if the mission should terminate
-            missionComplete = checkTerminationConditions();
-        }
-
-        //Deliver the final report at the end of the mission
-        String finalReport = deliverFinalReport();
-        logger.info("** Final Report: {}", finalReport);
-    }
-
-    private boolean checkTerminationConditions() {
-        //Terminate if the battery is too low or both the emergency site and at least one creek are found
-        return droneStatus.getBattery() <= 10 || (emergencySite != null && !foundCreeks.isEmpty());
-    }
-
     //Implementing ExecuteAction methods directly in Explorer
     @Override
     public String fly() {
@@ -155,13 +149,32 @@ public class Explorer implements IExplorerRaid, ExecuteAction {
 
     @Override
     public String turn(String newDirection) {
-        //Returns a JSON string representing the "turn" action with the specified direction
-        return new JSONObject().put("action", "turn").put("direction", newDirection).toString();
+        JSONObject command = new JSONObject();
+        JSONObject parameters = new JSONObject();
+
+        parameters.put("direction", newDirection);
+        command.put("action","heading");
+        command.put("parameters", parameters);
+
+        return command.toString();
     }
 
     @Override
     public String scan() {
         //Returns a JSON string representing the "scan" action
         return new JSONObject().put("action", "scan").toString();
+    }
+
+    @Override
+    public String radar(String Direction) {
+        //Returns a JSON string representing the "radar" action with the current direction
+        JSONObject command = new JSONObject();
+        JSONObject parameters = new JSONObject();
+
+        parameters.put("direction", Direction);
+        command.put("action","echo");
+        command.put("parameters", parameters);
+
+        return command.toString();
     }
 }
